@@ -72,9 +72,20 @@ export class InnerTubeSource implements DataSource {
 
   async *getUploadsOldestFirst(channelId: string): AsyncIterable<ChannelVideo[]> {
     const page = await this.post('browse', { browseId: channelId, params: VIDEOS_TAB_PARAMS });
-    const oldest = findFirst(page, (v) => v.listItemViewModel?.title?.content === 'Oldest');
+    // The sort options come either as a dropdown or as plain chips.
+    const oldest = findFirst(
+      page,
+      (v) => v.listItemViewModel?.title?.content === 'Oldest' || v.chipViewModel?.text === 'Oldest',
+    );
     let token: string | undefined = findFirst(oldest, (v) => typeof v.continuationCommand?.token === 'string')
       ?.continuationCommand.token;
+
+    if (!token) {
+      if (findFirst(page, (v) => typeof v.lockupViewModel === 'object')) {
+        throw new Error('Could not sort this channel by oldest');
+      }
+      return;
+    }
 
     while (token) {
       const data = await this.post('browse', { continuation: token });

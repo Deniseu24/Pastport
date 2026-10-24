@@ -8,7 +8,12 @@ interface Entry {
   timeline: ChannelTimeline;
 }
 
-const timelines = storage.defineItem<Entry[]>('local:timelines', { fallback: [] });
+// Bump the version to drop timelines saved by older, buggy code.
+const timelines = storage.defineItem<Entry[]>('local:timelines', {
+  fallback: [],
+  version: 2,
+  migrations: { 2: () => [] },
+});
 
 export async function getCachedTimeline(key: string): Promise<ChannelTimeline | null> {
   const entries = await timelines.getValue();
