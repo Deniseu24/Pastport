@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { formatCountdown, getSelectableYears, getVirtualDate, isBeforeVirtualDate, yearToOffset } from './clock';
+import {
+  formatCountdown,
+  formatTimeAgo,
+  getSelectableYears,
+  getVirtualDate,
+  isBeforeVirtualDate,
+  yearToOffset,
+} from './clock';
+
+describe('formatTimeAgo', () => {
+  const now = new Date(2014, 9, 24, 21, 0).getTime();
+
+  it('uses the largest whole unit', () => {
+    expect(formatTimeAgo(new Date(2014, 9, 24, 19, 30).getTime(), now)).toBe('1 hour ago');
+    expect(formatTimeAgo(new Date(2014, 9, 21, 21, 0).getTime(), now)).toBe('3 days ago');
+    expect(formatTimeAgo(new Date(2014, 9, 10).getTime(), now)).toBe('2 weeks ago');
+    expect(formatTimeAgo(new Date(2012, 0, 1).getTime(), now)).toBe('2 years ago');
+  });
+
+  it('handles very recent uploads', () => {
+    expect(formatTimeAgo(now - 5_000, now)).toBe('5 seconds ago');
+    expect(formatTimeAgo(now, now)).toBe('just now');
+  });
+});
 
 describe('formatCountdown', () => {
   it('formats years and months', () => {
@@ -13,6 +36,11 @@ describe('formatCountdown', () => {
   it('formats single units', () => {
     expect(formatCountdown(new Date(2014, 9, 24), new Date(2015, 9, 24))).toBe('1 year');
     expect(formatCountdown(new Date(2014, 9, 24), new Date(2014, 9, 25))).toBe('1 day');
+  });
+
+  it('formats hours and minutes within a day', () => {
+    expect(formatCountdown(new Date(2014, 9, 24, 10), new Date(2014, 9, 24, 15, 20))).toBe('5 hours');
+    expect(formatCountdown(new Date(2014, 9, 24, 10), new Date(2014, 9, 24, 10, 40))).toBe('40 minutes');
   });
 });
 

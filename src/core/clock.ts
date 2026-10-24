@@ -60,7 +60,30 @@ export function formatCountdown(from: Date, to: Date): string {
 
   if (years > 0) return months > 0 ? `${plural(years, 'year')}, ${plural(months, 'month')}` : plural(years, 'year');
   if (months > 0) return days > 0 ? `${plural(months, 'month')}, ${plural(days, 'day')}` : plural(months, 'month');
-  return days > 0 ? plural(days, 'day') : 'less than a day';
+  if (days > 0) return plural(days, 'day');
+
+  const minutes = Math.max(1, Math.floor((to.getTime() - from.getTime()) / 60_000));
+  return minutes >= 60 ? plural(Math.floor(minutes / 60), 'hour') : plural(minutes, 'minute');
+}
+
+const AGE_STEPS: [string, number][] = [
+  ['year', 31_556_952],
+  ['month', 2_629_746],
+  ['week', 604_800],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+  ['second', 1],
+];
+
+/** YouTube style age, like "3 hours ago". */
+export function formatTimeAgo(date: number, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - date) / 1000));
+  for (const [unit, size] of AGE_STEPS) {
+    const amount = Math.floor(seconds / size);
+    if (amount >= 1) return `${plural(amount, unit)} ago`;
+  }
+  return 'just now';
 }
 
 export function isBeforeVirtualDate(date: Date, offset: number, now: Date = new Date()): boolean {

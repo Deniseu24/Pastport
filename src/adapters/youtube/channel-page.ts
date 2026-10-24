@@ -1,6 +1,7 @@
-import { endOfDay, formatCountdown } from '@/core/clock';
+import { endOfDay, formatCountdown, formatTimeAgo, getVirtualDate } from '@/core/clock';
 import { getCachedTimeline, setCachedTimeline } from './cache';
-import type { DataSource } from './source';
+import { PublishDates } from './publish-dates';
+import type { ChannelVideo, DataSource } from './source';
 import { loadChannelTimeline, type ChannelTimeline } from './timeline';
 
 const SHORTS_LAUNCH = new Date(2020, 8, 14);
@@ -17,11 +18,27 @@ export function isChannelVideosPage(path: string): boolean {
 export class ChannelPage {
   private run = 0;
   private headerTimer?: number;
+  private observer?: IntersectionObserver;
+  private dates: PublishDates;
+  private datedSource: DataSource;
 
   constructor(
     private source: DataSource,
-    private virtualDate: Date,
-  ) {}
+    private offset: number,
+  ) {
+    this.dates = new PublishDates(source);
+    this.datedSource = {
+      resolveChannelId: (url) => source.resolveChannelId(url),
+      getUploadsOldestFirst: (id) => source.getUploadsOldestFirst(id),
+      getPublishDate: (id) => this.dates.get(id),
+      getJoinedDate: (id) => source.getJoinedDate(id),
+    };
+  }
+
+  /** The virtual clock keeps ticking while the page is open. */
+  private get now(): Date {
+    return getVirtualDate(this.offset);
+  }
 
   async show(url: URL): Promise<void> {
     const run = ++this.run;
@@ -29,7 +46,8 @@ export class ChannelPage {
     if (!primary || run !== this.run) return;
 
     const root = mount(primary);
-    root.replaceChildren(message('Traveling back in time...', `Heading to ${dateFormat.format(this.virtualDate)}`));
+    const heading = `Heading to ${dateFormat.format(this.now)}`;
+    root.replaceChildren(message('Traveling back in time...', heading));
     this.watchHeader(null);
 
     try {
@@ -37,15 +55,13 @@ export class ChannelPage {
       if (!channelId) throw new Error('Channel not found');
 
       const timeline = await this.loadTimeline(channelId, (scanned) => {
-        if (run !== this.run) return;
-        root.replaceChildren(
-          message('Traveling back in time...', `Heading to ${dateFormat.format(this.virtualDate)}. Checked ${scanned} videos.`),
-        );
+        if (run === this.run) root.replaceChildren(message('Traveling back in time...', `${heading}. Checked ${scanned} videos.`));
       });
+      const visible = await this.hideUpcoming(timeline);
       if (run !== this.run) return;
 
-      this.watchHeader(timeline.videos.length);
-      root.replaceChildren(timeline.videos.length ? grid(timeline) : this.emptyState(timeline));
+      this.watchHeader(visible.videos.length);
+      root.replaceChildren(visible.videos.length ? this.grid(visible.videos) : this.emptyState(visible));
     } catch (error) {
       if (run !== this.run) return;
       console.error('[Pastport]', error);
@@ -56,6 +72,7 @@ export class ChannelPage {
   hide(): void {
     this.run++;
     window.clearInterval(this.headerTimer);
+    this.observer?.disconnect();
     document.querySelectorAll(`.${ROOT_CLASS}`).forEach((el) => el.remove());
     document.querySelectorAll(`.${ACTIVE_CLASS}`).forEach((el) => el.classList.remove(ACTIVE_CLASS));
     document.querySelectorAll('[data-pastport-hidden]').forEach((el) => {
@@ -64,36 +81,105 @@ export class ChannelPage {
     });
   }
 
+  /** Timelines are cached per virtual day, so the cut is made at the end of that day. */
   private async loadTimeline(channelId: string, onProgress: (scanned: number) => void): Promise<ChannelTimeline> {
-    const target = endOfDay(this.virtualDate);
+    const target = endOfDay(this.now);
     const key = `${channelId}:${target.toDateString()}`;
 
     const cached = await getCachedTimeline(key);
     if (cached) return cached;
 
-    const timeline = await loadChannelTimeline(this.source, channelId, target.getTime(), onProgress);
+    const timeline = await loadChannelTimeline(this.datedSource, channelId, target.getTime(), onProgress);
     await setCachedTimeline(key, timeline);
     return timeline;
   }
 
+  /** Drops videos from later today that have not been uploaded yet at the virtual time. */
+  private async hideUpcoming(timeline: ChannelTimeline): Promise<ChannelTimeline> {
+    const now = this.now.getTime();
+    let start = 0;
+    let nextUpload: number | null = null;
+
+    for (const video of timeline.videos) {
+      const date = await this.dates.get(video.id);
+      if (date === null || date <= now) break;
+      nextUpload = date;
+      start++;
+    }
+
+    if (start === 0) return timeline;
+    const videos = timeline.videos.slice(start);
+    return { ...timeline, videos, firstUploadAt: videos.length ? timeline.firstUploadAt : nextUpload };
+  }
+
   private emptyState(timeline: ChannelTimeline): HTMLElement {
     const name = channelName();
+    const now = this.now;
 
-    if (timeline.joinedAt && timeline.joinedAt > this.virtualDate.getTime()) {
-      const wait = formatCountdown(this.virtualDate, new Date(timeline.joinedAt));
+    if (timeline.joinedAt && timeline.joinedAt > now.getTime()) {
+      const wait = formatCountdown(now, new Date(timeline.joinedAt));
       return message(`${name} hasn't joined YouTube yet!`, `This channel opens in ${wait}.`);
     }
     if (timeline.firstUploadAt) {
-      const wait = formatCountdown(this.virtualDate, new Date(timeline.firstUploadAt));
+      const wait = formatCountdown(now, new Date(timeline.firstUploadAt));
       return message(`${name} hasn't started creating yet!`, `Their first video drops in ${wait}.`);
     }
-    return message('Nothing here yet.', `${name} has no videos from before ${dateFormat.format(this.virtualDate)}.`);
+    return message('Nothing here yet.', `${name} has no videos from before ${dateFormat.format(now)}.`);
+  }
+
+  private grid(videos: ChannelVideo[]): HTMLElement {
+    const container = el('div', 'pastport-grid');
+    const metas = new Map<Element, { meta: HTMLElement; id: string }>();
+
+    // Exact upload times are looked up only for cards that come into view.
+    this.observer?.disconnect();
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const card = metas.get(entry.target);
+          if (!entry.isIntersecting || !card) continue;
+          this.observer?.unobserve(entry.target);
+          this.dates
+            .get(card.id)
+            .then((date) => {
+              if (date !== null) card.meta.textContent = formatTimeAgo(date, this.now.getTime());
+            })
+            .catch(() => {});
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+
+    for (const video of videos) {
+      const link = document.createElement('a');
+      link.className = 'pastport-card';
+      link.href = `/watch?v=${video.id}`;
+
+      const thumb = el('div', 'pastport-thumb');
+      const img = document.createElement('img');
+      img.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+      img.alt = '';
+      img.loading = 'lazy';
+      thumb.append(img);
+      if (video.duration) thumb.append(el('span', 'pastport-duration', video.duration));
+
+      const meta = el('p', 'pastport-meta');
+      const details = el('div', 'pastport-details');
+      details.append(el('h3', 'pastport-title', video.title), meta);
+
+      link.append(thumb, details);
+      container.append(link);
+      metas.set(link, { meta, id: video.id });
+      this.observer.observe(link);
+    }
+
+    return container;
   }
 
   /** The header re-renders on its own, so keep patching it while the page is open. */
   private watchHeader(videoCount: number | null): void {
     window.clearInterval(this.headerTimer);
-    const patch = () => patchHeader(videoCount, this.virtualDate);
+    const patch = () => patchHeader(videoCount, this.now);
     patch();
     this.headerTimer = window.setInterval(patch, 500);
   }
@@ -116,7 +202,7 @@ function mount(primary: HTMLElement): HTMLElement {
   return root;
 }
 
-function patchHeader(videoCount: number | null, virtualDate: Date): void {
+function patchHeader(videoCount: number | null, now: Date): void {
   const header = document.querySelector('ytd-browse[page-subtype="channels"]:not([hidden]) yt-page-header-renderer');
   if (!header) return;
 
@@ -133,7 +219,7 @@ function patchHeader(videoCount: number | null, virtualDate: Date): void {
     }
   }
 
-  if (virtualDate < SHORTS_LAUNCH) {
+  if (now < SHORTS_LAUNCH) {
     document.querySelectorAll<HTMLElement>('yt-tab-shape[tab-title="Shorts"]').forEach(hideElement);
   }
 }
@@ -152,29 +238,6 @@ function message(title: string, detail: string): HTMLElement {
   const box = el('div', 'pastport-message');
   box.append(el('div', 'pastport-message-icon', '🕰️'), el('h2', 'pastport-message-title', title), el('p', 'pastport-message-detail', detail));
   return box;
-}
-
-function grid(timeline: ChannelTimeline): HTMLElement {
-  const container = el('div', 'pastport-grid');
-
-  for (const video of timeline.videos) {
-    const link = document.createElement('a');
-    link.className = 'pastport-card';
-    link.href = `/watch?v=${video.id}`;
-
-    const thumb = el('div', 'pastport-thumb');
-    const img = document.createElement('img');
-    img.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
-    img.alt = '';
-    img.loading = 'lazy';
-    thumb.append(img);
-    if (video.duration) thumb.append(el('span', 'pastport-duration', video.duration));
-
-    link.append(thumb, el('h3', 'pastport-title', video.title));
-    container.append(link);
-  }
-
-  return container;
 }
 
 function el(tag: string, className: string, text?: string): HTMLElement {

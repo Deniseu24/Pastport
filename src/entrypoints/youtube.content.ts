@@ -1,7 +1,6 @@
 import { ChannelPage, isChannelVideosPage } from '@/adapters/youtube/channel-page';
 import { InnerTubeSource } from '@/adapters/youtube/innertube';
 import '@/adapters/youtube/style.css';
-import { getVirtualDate } from '@/core/clock';
 import { enabledSetting, offsetSetting } from '@/core/settings';
 
 export default defineContentScript({
@@ -14,7 +13,7 @@ export default defineContentScript({
     if (!enabled) return;
 
     const offset = await offsetSetting.getValue();
-    const channelPage = new ChannelPage(new InnerTubeSource(), getVirtualDate(offset));
+    const channelPage = new ChannelPage(new InnerTubeSource(), offset);
 
     let current = '';
     const route = () => {
