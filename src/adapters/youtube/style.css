@@ -1,0 +1,91 @@
+.pastport-active > :not(.pastport-root) {
+  display: none !important;
+}
+
+.pastport-root {
+  --pastport-text: #0f0f0f;
+  --pastport-muted: #606060;
+  padding: 24px 0;
+  color: var(--pastport-text);
+  font-family: Roboto, Arial, sans-serif;
+}
+
+html[dark] .pastport-root {
+  --pastport-text: #f1f1f1;
+  --pastport-muted: #aaa;
+}
+
+.pastport-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 40px 16px;
+}
+
+.pastport-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pastport-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.2);
+}
+
+.pastport-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pastport-duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pastport-title {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.pastport-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.pastport-message-icon {
+  font-size: 48px;
+}
+
+.pastport-message-title {
+  margin: 16px 0 8px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.pastport-message-detail {
+  margin: 0;
+  color: var(--pastport-muted);
+  font-size: 16px;
+}

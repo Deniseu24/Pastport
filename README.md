@@ -18,12 +18,12 @@ Pastport keeps a virtual clock. If today is October 24, 2026 and you travel to 2
 ## Roadmap
 
 ### v0.1 (MVP)
-- [ ] Virtual clock with a year picker
-- [ ] Channel pages only show videos up to the virtual date
-- [ ] Friendly empty state when a channel has not started yet
+- [x] Virtual clock with a year picker
+- [x] Channel pages only show videos up to the virtual date
+- [x] Friendly empty state when a channel has not started yet
 - [ ] Search limited to the virtual date
 - [ ] Hide newer comments and recommendations on watch pages
-- [ ] Hide Shorts and subscriber counts where they did not exist yet
+- [x] Hide Shorts and subscriber counts where they did not exist yet
 
 ### Later
 - [ ] A home feed built from your subscriptions as they were back then

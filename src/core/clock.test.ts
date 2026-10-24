@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { getSelectableYears, getVirtualDate, isBeforeVirtualDate, yearToOffset } from './clock';
+import { formatCountdown, getSelectableYears, getVirtualDate, isBeforeVirtualDate, yearToOffset } from './clock';
+
+describe('formatCountdown', () => {
+  it('formats years and months', () => {
+    expect(formatCountdown(new Date(2014, 9, 24), new Date(2017, 1, 24))).toBe('2 years, 4 months');
+  });
+
+  it('formats months and days', () => {
+    expect(formatCountdown(new Date(2014, 9, 24), new Date(2015, 0, 1))).toBe('2 months, 8 days');
+  });
+
+  it('formats single units', () => {
+    expect(formatCountdown(new Date(2014, 9, 24), new Date(2015, 9, 24))).toBe('1 year');
+    expect(formatCountdown(new Date(2014, 9, 24), new Date(2014, 9, 25))).toBe('1 day');
+  });
+});
 
 describe('getVirtualDate', () => {
   it('keeps month and day', () => {
