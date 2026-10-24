@@ -25,6 +25,8 @@ export class ChannelPage {
   constructor(
     private source: DataSource,
     private offset: number,
+    /** False once the extension was reloaded and this copy of the script is stale. */
+    private isAlive: () => boolean = () => true,
   ) {
     this.dates = new PublishDates(source);
     this.datedSource = {
@@ -63,7 +65,7 @@ export class ChannelPage {
       this.watchHeader(visible.videos.length);
       root.replaceChildren(visible.videos.length ? this.grid(visible.videos) : this.emptyState(visible));
     } catch (error) {
-      if (run !== this.run) return;
+      if (run !== this.run || !this.isAlive()) return;
       console.error('[Pastport]', error);
       root.replaceChildren(message('The time machine stalled.', 'Could not load this channel. Try reloading the page.'));
     }
@@ -179,7 +181,10 @@ export class ChannelPage {
   /** The header re-renders on its own, so keep patching it while the page is open. */
   private watchHeader(videoCount: number | null): void {
     window.clearInterval(this.headerTimer);
-    const patch = () => patchHeader(videoCount, this.now);
+    const patch = () => {
+      if (this.isAlive()) patchHeader(videoCount, this.now);
+      else this.hide();
+    };
     patch();
     this.headerTimer = window.setInterval(patch, 500);
   }

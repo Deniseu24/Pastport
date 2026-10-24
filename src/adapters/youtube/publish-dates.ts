@@ -55,7 +55,7 @@ export class PublishDates {
     this.known.set(videoId, date);
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      saved.setValue(Object.fromEntries([...this.known].slice(-MAX_SAVED)));
+      saved.setValue(Object.fromEntries([...this.known].slice(-MAX_SAVED))).catch(() => {});
     }, 1000);
   }
 }

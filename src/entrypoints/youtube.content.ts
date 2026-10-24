@@ -5,7 +5,7 @@ import { enabledSetting, offsetSetting } from '@/core/settings';
 
 export default defineContentScript({
   matches: ['*://www.youtube.com/*'],
-  async main() {
+  async main(ctx) {
     enabledSetting.watch(() => location.reload());
     offsetSetting.watch(() => location.reload());
 
@@ -13,7 +13,7 @@ export default defineContentScript({
     if (!enabled) return;
 
     const offset = await offsetSetting.getValue();
-    const channelPage = new ChannelPage(new InnerTubeSource(), offset);
+    const channelPage = new ChannelPage(new InnerTubeSource(), offset, () => ctx.isValid);
 
     let current = '';
     const route = () => {
@@ -25,7 +25,8 @@ export default defineContentScript({
       if (isChannelVideosPage(url.pathname)) channelPage.show(url);
     };
 
-    document.addEventListener('yt-navigate-finish', route);
+    ctx.onInvalidated(() => channelPage.hide());
+    ctx.addEventListener(document, 'yt-navigate-finish', route);
     route();
   },
 });

@@ -3,6 +3,7 @@ import type { ChannelVideo, DataSource } from './source';
 const API = 'https://www.youtube.com/youtubei/v1';
 const FALLBACK_VERSION = '2.20261023.01.00';
 const VIDEOS_TAB_PARAMS = 'EgZ2aWRlb3PyBgQKAjoA';
+const RETRIES = 2;
 
 type Json = any;
 
@@ -47,8 +48,23 @@ function parseLockup(lockup: Json): ChannelVideo | null {
 export class InnerTubeSource implements DataSource {
   private version = readClientVersion();
 
+  /** Network hiccups and rate limits are common on long scans, so retry a few times. */
   private async post(endpoint: string, body: object): Promise<Json> {
-    const response = await fetch(`${API}/${endpoint}?prettyPrint=false`, {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await this.request(endpoint, body);
+        if (response.ok) return await response.json();
+        const retryable = response.status === 429 || response.status >= 500;
+        if (!retryable || attempt >= RETRIES) throw new Error(`InnerTube ${endpoint} failed with ${response.status}`);
+      } catch (error) {
+        if (!(error instanceof TypeError) || attempt >= RETRIES) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+
+  private request(endpoint: string, body: object): Promise<Response> {
+    return fetch(`${API}/${endpoint}?prettyPrint=false`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
@@ -61,8 +77,6 @@ export class InnerTubeSource implements DataSource {
         ...body,
       }),
     });
-    if (!response.ok) throw new Error(`InnerTube ${endpoint} failed with ${response.status}`);
-    return response.json();
   }
 
   async resolveChannelId(url: string): Promise<string | null> {
