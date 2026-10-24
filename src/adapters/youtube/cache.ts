@@ -11,8 +11,8 @@ interface Entry {
 // Bump the version to drop timelines saved by older, buggy code.
 const timelines = storage.defineItem<Entry[]>('local:timelines', {
   fallback: [],
-  version: 2,
-  migrations: { 2: () => [] },
+  version: 3,
+  migrations: { 2: () => [], 3: () => [] },
 });
 
 export async function getCachedTimeline(key: string): Promise<ChannelTimeline | null> {

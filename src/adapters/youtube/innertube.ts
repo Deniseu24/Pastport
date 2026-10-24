@@ -40,6 +40,7 @@ function parseLockup(lockup: Json): ChannelVideo | null {
     title: meta?.title?.content ?? '',
     duration: badge?.thumbnailBadgeViewModel.text,
     ageText: parts.find((part) => /ago/i.test(part)),
+    views: parts.find((part) => /views?$/i.test(part)),
   };
 }
 

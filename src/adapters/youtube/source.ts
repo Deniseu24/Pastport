@@ -3,6 +3,8 @@ export interface ChannelVideo {
   title: string;
   duration?: string;
   ageText?: string;
+  /** Today's view count, as YouTube shows it. */
+  views?: string;
 }
 
 /** Where YouTube data comes from. InnerTube today, the official Data API later. */

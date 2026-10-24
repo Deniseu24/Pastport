@@ -129,7 +129,7 @@ export class ChannelPage {
 
   private grid(videos: ChannelVideo[]): HTMLElement {
     const container = el('div', 'pastport-grid');
-    const metas = new Map<Element, { meta: HTMLElement; id: string }>();
+    const metas = new Map<Element, { meta: HTMLElement; video: ChannelVideo }>();
 
     // Exact upload times are looked up only for cards that come into view.
     this.observer?.disconnect();
@@ -140,9 +140,9 @@ export class ChannelPage {
           if (!entry.isIntersecting || !card) continue;
           this.observer?.unobserve(entry.target);
           this.dates
-            .get(card.id)
+            .get(card.video.id)
             .then((date) => {
-              if (date !== null) card.meta.textContent = formatTimeAgo(date, this.now.getTime());
+              if (date !== null) card.meta.textContent = metaText(card.video, date, this.now.getTime());
             })
             .catch(() => {});
         }
@@ -163,13 +163,13 @@ export class ChannelPage {
       thumb.append(img);
       if (video.duration) thumb.append(el('span', 'pastport-duration', video.duration));
 
-      const meta = el('p', 'pastport-meta');
+      const meta = el('p', 'pastport-meta', metaText(video));
       const details = el('div', 'pastport-details');
       details.append(el('h3', 'pastport-title', video.title), meta);
 
       link.append(thumb, details);
       container.append(link);
-      metas.set(link, { meta, id: video.id });
+      metas.set(link, { meta, video });
       this.observer.observe(link);
     }
 
@@ -183,6 +183,11 @@ export class ChannelPage {
     patch();
     this.headerTimer = window.setInterval(patch, 500);
   }
+}
+
+function metaText(video: ChannelVideo, date?: number, now?: number): string {
+  const age = date !== undefined && now !== undefined ? formatTimeAgo(date, now) : undefined;
+  return [video.views, age].filter(Boolean).join(' • ');
 }
 
 function activeChannelPrimary(): HTMLElement | null {
