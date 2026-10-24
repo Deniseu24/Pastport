@@ -1,0 +1,89 @@
+:root {
+  --bg: #fbf7f0;
+  --text: #2b2420;
+  --muted: #7a6e64;
+  --accent: #b5482a;
+  --border: #e3d9cc;
+  font-family: system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1d1916;
+    --text: #f1e9df;
+    --muted: #a3968a;
+    --accent: #e0775a;
+    --border: #3a322c;
+  }
+}
+
+body {
+  margin: 0;
+  width: 280px;
+  background: var(--bg);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.tagline {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+
+.date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.date strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+button {
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button.active {
+  background: transparent;
+  color: var(--accent);
+}
